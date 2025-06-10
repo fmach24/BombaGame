@@ -1,4 +1,5 @@
-const socket = io();
+import socket from "../js/socket.js";
+import Player from "../js/player.js";
 
 export default class GameScene extends Phaser.Scene {
   constructor() {
@@ -8,22 +9,21 @@ export default class GameScene extends Phaser.Scene {
   }
 
   preload() {
-    this.load.image("player", "https://labs.phaser.io/assets/sprites/phaser-dude.png");
-    this.load.spritesheet('bomb', 'assets/bomb_character_o_idle.png', {
+    this.load.spritesheet('bomb', 'assets/sprites/bomb_character_o_idle.png', {
         frameWidth: 64,  // szerokość jednej klatki
         frameHeight: 64, // wysokość jednej klatki
         endFrame: 2     // liczba klatek (2 dla dwóch stanów idle)
     });
-    this.load.spritesheet('boom', 'assets/bomb_character_o_explode.png', {
+    this.load.spritesheet('bomb_explode', 'assets/sprites/bomb_character_o_explode.png', {
         frameWidth: 64,  // szerokość jednej klatki
         frameHeight: 64, // wysokość jednej klatki
         endFrame: 4     // liczba klatek (2 dla dwóch stanów idle)
     });
-    this.load.image("bullet", "/assets/bullet.png");
-    this.load.image('frame1r', 'assets/standing1r.png');
-    this.load.image('frame2r', 'assets/standing2r.png');
-    this.load.image('frame1l', 'assets/standing1l.png');
-    this.load.image('frame2l', 'assets/standing2l.png');
+    this.load.image("bullet", "assets/sprites/bullet.png");
+    this.load.image('frame1r', 'assets/sprites/standing1r.png');
+    this.load.image('frame2r', 'assets/sprites/standing2r.png');
+    this.load.image('frame1l', 'assets/sprites/standing1l.png');
+    this.load.image('frame2l', 'assets/sprites/standing2l.png');
   }
 
   create() {
@@ -50,7 +50,7 @@ export default class GameScene extends Phaser.Scene {
 
     this.anims.create({
         key: 'boom',
-        frames: this.anims.generateFrameNumbers('boom', { start: 0, end: 4 }),
+        frames: this.anims.generateFrameNumbers('bomb_explode', { start: 0, end: 4 }),
         frameRate: 10,
         repeat: 0
     });
@@ -77,11 +77,12 @@ export default class GameScene extends Phaser.Scene {
     socket.on("currentPlayers", (players) => {
       for (const id in players) {
         if (id === socket.id) {
-          // this.player = this.physics.add.sprite(players[id].x, players[id].y, "player").setCollideWorldBounds(true);
-          this.player = this.physics.add.sprite(players[id].x, players[id].y, "frame1r").setCollideWorldBounds(true);
+          // this.player = this.physics.add.sprite(players[id].x, players[id].y, "frame1r").setCollideWorldBounds(true);
+          this.player = new Player(this, players[id].x, players[id].y, "frame1r");
           this.player.play('bombardinhoIdleright');
         } else {
-          const other = this.physics.add.sprite(players[id].x, players[id].y, "frame1r").setCollideWorldBounds(true);
+          // const other = this.physics.add.sprite(players[id].x, players[id].y, "frame1r").setCollideWorldBounds(true);
+          const other = new Player(this, players[id].x, players[id].y, "frame1r");
           other.play('bombardinhoIdleright');
           this.otherPlayers[id] = other;
         }
