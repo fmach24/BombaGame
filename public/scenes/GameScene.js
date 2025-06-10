@@ -1,5 +1,6 @@
 import socket from "../js/socket.js";
 import Player from "../js/player.js";
+import Bullet from "../js/bullet.js";
 
 export default class GameScene extends Phaser.Scene {
   constructor() {
@@ -27,7 +28,7 @@ export default class GameScene extends Phaser.Scene {
   }
 
   create() {
-    this.cameras.main.setBackgroundColor('#ffffff');
+    // this.cameras.main.setBackgroundColor('#ffffff');
 
     this.cursors = this.input.keyboard.createCursorKeys();
 
@@ -93,7 +94,9 @@ export default class GameScene extends Phaser.Scene {
     socket.on("newPlayer", (data) => {
       if (data.id === socket.id) return; // unikaj duplikatu
       // const newP = this.physics.add.sprite(data.x, data.y, "player");
-      const newP = this.add.sprite(data.x, data.y, 'frame1r');
+
+      // const newP = this.add.sprite(data.x, data.y, 'frame1r');
+      const newP = new Player(this, data.x, data.y, 'frame1r');
       newP.play('bombardinhoIdleright');
       this.otherPlayers[data.id] = newP;
     });
@@ -119,7 +122,7 @@ export default class GameScene extends Phaser.Scene {
   update() {
     if (!this.player) return;
 
-    const speed = 200;
+    const speed = 5000;
     this.player.setVelocity(0);
 
     // if (this.cursors.left.isDown) this.player.setVelocityX(-speed);
@@ -151,11 +154,12 @@ export default class GameScene extends Phaser.Scene {
 
   fire() {
       // Tworzenie pocisku na pozycji gracza
-      const bullet = this.bullets.create(
-          this.player.x,  // x gracza
-          this.player.y,  // y gracza
-          "bomb"
-      );
+      // const bullet = this.bullets.create(
+      //     this.player.x,  // x gracza
+      //     this.player.y,  // y gracza
+      //     "bomb"
+      // );
+      const bullet = new Bullet(this, this.player.x, this.player.y, "bomb");
 
       bullet.play('idle');
 
