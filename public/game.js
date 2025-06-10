@@ -1,5 +1,5 @@
 import MainMenu from "./scenes/MainMenu.js";
-import Proba from "./scenes/Proba.js";
+import GameScene from "./scenes/GameScene.js";
 
 // const socket = io();
 
@@ -16,7 +16,7 @@ const config = {
   //   create,
   //   update
   // }
-  scene: [MainMenu, Proba]
+  scene: [MainMenu, GameScene]
 };
 
 new Phaser.Game(config);

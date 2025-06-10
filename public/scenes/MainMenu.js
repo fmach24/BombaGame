@@ -27,7 +27,7 @@ export default class MainMenu extends Phaser.Scene {
     startButton.setInteractive();
     startButton.on('pointerdown', () => {
       this.playerNick = input.node.value || 'Gracz'; // Domyślny nick
-      this.scene.start('Proba', { nick: this.playerNick }); // Przekazanie nicku do gry
+      this.scene.start('GameScene', { nick: this.playerNick }); // Przekazanie nicku do gry
     });
   }
 }

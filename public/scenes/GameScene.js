@@ -3,38 +3,86 @@ const socket = io();
 export default class GameScene extends Phaser.Scene {
   constructor() {
     super("GameScene");
-    this.player = null;
+    // this.player = null;
     this.otherPlayers = {};
   }
 
   preload() {
     this.load.image("player", "https://labs.phaser.io/assets/sprites/phaser-dude.png");
+    this.load.spritesheet('bomb', 'assets/bomb_character_o_idle.png', {
+        frameWidth: 64,  // szerokość jednej klatki
+        frameHeight: 64, // wysokość jednej klatki
+        endFrame: 2     // liczba klatek (2 dla dwóch stanów idle)
+    });
+    this.load.spritesheet('boom', 'assets/bomb_character_o_explode.png', {
+        frameWidth: 64,  // szerokość jednej klatki
+        frameHeight: 64, // wysokość jednej klatki
+        endFrame: 4     // liczba klatek (2 dla dwóch stanów idle)
+    });
+    this.load.image("bullet", "/assets/bullet.png");
+    this.load.image('frame1r', 'assets/standing1r.png');
+    this.load.image('frame2r', 'assets/standing2r.png');
+    this.load.image('frame1l', 'assets/standing1l.png');
+    this.load.image('frame2l', 'assets/standing2l.png');
   }
 
   create() {
-    // this.player = this.physics.add.image(100, 100, "player").setCollideWorldBounds(true);
+    this.cameras.main.setBackgroundColor('#ffffff');
+
     this.cursors = this.input.keyboard.createCursorKeys();
 
-   
+       // Grupa pocisków (z włączoną fizyką)
+    this.bullets = this.physics.add.group();
 
-    // socket.on("currentPlayers", (players) => {
-    //   for (const id in players) {
-    //     if (id === socket.id) {
-    //       this.player = this.phisics.add.image(players[id].x, players[id].y, "player").setCollideWorldBounds(true);
-    //     } else {
-    //       const p = this.physics.add.image(players[id].x, players[id].y, "player");
-    //       this.otherPlayers[id] = p;
-    //     }
-    //   }
-    // });
+    // Klawisz strzału (np. SPACJA)
+    this.fireKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
+
+
+    this.anims.create({
+        key: 'idle',
+        frames: this.anims.generateFrameNumbers('bomb', {
+            start: 0,  // pierwsza klatka
+            end: 1     // druga klatka
+        }),
+        frameRate: 4, // tempo animacji (klatki na sekundę)
+        repeat: 1    // zapętlenie (-1 = nieskończone)
+    });
+
+    this.anims.create({
+        key: 'boom',
+        frames: this.anims.generateFrameNumbers('boom', { start: 0, end: 4 }),
+        frameRate: 10,
+        repeat: 0
+    });
+    this.anims.create({
+      key: 'bombardinhoIdleright',
+      frames: [
+        { key: 'frame1r' },
+        { key: 'frame2r' }
+      ],
+      frameRate: 4,
+      repeat: -1
+    });
+    this.anims.create({
+      key: 'bombardinhoIdleleft',
+      frames: [
+        { key: 'frame1l' },
+        { key: 'frame2l' }
+      ],
+      frameRate: 4,
+      repeat: -1
+    });
+
+
     socket.on("currentPlayers", (players) => {
       for (const id in players) {
         if (id === socket.id) {
-          // Dodaj lokalnego gracza tylko raz
-          this.player = this.physics.add.image(players[id].x, players[id].y, "player").setCollideWorldBounds(true);
+          // this.player = this.physics.add.sprite(players[id].x, players[id].y, "player").setCollideWorldBounds(true);
+          this.player = this.physics.add.sprite(players[id].x, players[id].y, "frame1r").setCollideWorldBounds(true);
+          this.player.play('bombardinhoIdleright');
         } else {
-          // Dodaj innych graczy
-          const other = this.physics.add.image(players[id].x, players[id].y, "player");
+          const other = this.physics.add.sprite(players[id].x, players[id].y, "frame1r").setCollideWorldBounds(true);
+          other.play('bombardinhoIdleright');
           this.otherPlayers[id] = other;
         }
       }
@@ -42,16 +90,18 @@ export default class GameScene extends Phaser.Scene {
     });
 
     socket.on("newPlayer", (data) => {
-      // this.physics.add.image(data.x, data.y, "player");
-      const newP = this.physics.add.image(data.x, data.y, "player");
+      if (data.id === socket.id) return; // unikaj duplikatu
+      // const newP = this.physics.add.sprite(data.x, data.y, "player");
+      const newP = this.add.sprite(data.x, data.y, 'frame1r');
+      newP.play('bombardinhoIdleright');
       this.otherPlayers[data.id] = newP;
     });
 
     socket.on("playerMoved", (data) => {
-      // if (!player) return;
-      if (this.otherPlayers[data.id]) {
-        this.otherPlayers[data.id].x = data.x;
-        this.otherPlayers[data.id].y = data.y;
+      const other = this.otherPlayers[data.id];
+      if (other) {
+        other.x = data.x;
+        other.y = data.y;
       }
     });
 
@@ -66,93 +116,84 @@ export default class GameScene extends Phaser.Scene {
   }
 
   update() {
-    if (!player) return;//gry gracz nie jest w pelni stwozony
+    if (!this.player) return;
+
     const speed = 200;
     this.player.setVelocity(0);
 
-    if (this.cursors.left.isDown) this.player.setVelocityX(-speed);
-    if (this.cursors.right.isDown) this.player.setVelocityX(speed);
+    // if (this.cursors.left.isDown) this.player.setVelocityX(-speed);
+    // this.player.play('bombardinhoIdleleft');
+    // if (this.cursors.right.isDown) this.player.setVelocityX(speed);
+    // this.player.play('bombardinhoIdleright');
+    if (this.cursors.left.isDown) {
+    this.player.setVelocityX(-speed);
+      if (this.player.anims.currentAnim?.key !== 'bombardinhoIdleleft') {
+        this.player.play('bombardinhoIdleleft');
+      }
+    } else if (this.cursors.right.isDown) {
+      this.player.setVelocityX(speed);
+      if (this.player.anims.currentAnim?.key !== 'bombardinhoIdleright') {
+        this.player.play('bombardinhoIdleright');
+      }
+    }
     if (this.cursors.up.isDown) this.player.setVelocityY(-speed);
     if (this.cursors.down.isDown) this.player.setVelocityY(speed);
 
+        // Strzelanie po naciśnięciu SPACJI
+    if (Phaser.Input.Keyboard.JustDown(this.fireKey)) {
+        this.fire();
+    }
+
     socket.emit("playerMovement", { x: this.player.x, y: this.player.y });
   }
+
+
+  fire() {
+      // Tworzenie pocisku na pozycji gracza
+      const bullet = this.bullets.create(
+          this.player.x,  // x gracza
+          this.player.y,  // y gracza
+          "bomb"
+      );
+
+      bullet.play('idle');
+
+      bullet.on('animationcomplete', () => {
+        // 1. Ukryj bombę (ale nie niszcz, aby pozostały współrzędne)
+        bullet.setVisible(false);
+        bullet.body.stop(); // Zatrzymaj fizykę
+
+        // 2. Stwórz wybuch w miejscu bomby
+        const explosion = this.add.sprite(bullet.x, bullet.y, 'boom');
+        explosion.play('boom');
+
+        // 3. Po zakończeniu wybuchu, zniszcz oba obiekty
+        explosion.on('animationcomplete', () => {
+            explosion.destroy();
+            bullet.destroy(); // Teraz niszczymy bombę
+        });
+    });
+
+
+
+
+      // Ustawienie prędkości pocisku (np. w górę)
+      if (this.cursors.left.isDown) bullet.setVelocityX(-300); 
+      if (this.cursors.right.isDown) bullet.setVelocityX(300); 
+      if (this.cursors.up.isDown) bullet.setVelocityY(-300); 
+      if (this.cursors.down.isDown) bullet.setVelocityY(300); 
+      
+
+      // Opcjonalnie: kolizje z innymi obiektami
+      this.physics.add.collider(bullet, this.enemies, this.hitEnemy, null, this);
+  }
+
+  // Funkcja wywoływana przy trafieniu wroga
+  hitEnemy(bullet, enemy) {
+      bullet.destroy();  // Usuń pocisk
+      enemy.destroy();   // Usuń wroga (lub zadaj mu obrażenia)
+  }
+
 }
 
 
-
-
-
-
-
-// export default class GameScene extends Phaser.Scene {
-//   constructor() {
-//     super("GameScene");
-//     this.otherPlayers = {};
-//   }
-
-//   // let player;
-//   // let otherPlayers = {};
-
-//   preload() {
-//     // this.scene.start("NazwaSceny", "https://labs.phaser.io/phaser4-view.html?src=src%5Cscenes%5Crestart%20a%20scene.js&return=phaser4-index.html%3Fpath%3Dscenes");
-//     this.load.image("player", "https://labs.phaser.io/assets/sprites/phaser-dude.png");
-//   }
-
-//   create() {
-//     this.player = this.physics.add.image(100, 100, "player").setCollideWorldBounds(true);
-
-//     this.cursors = this.input.keyboard.createCursorKeys();
-
-//     socket.on("currentPlayers", (players) => {
-//       console.log("Players in game:", players);
-//       for (const id in players) {
-//         if (id === socket.id) {
-//           // Możesz zaktualizować lokalnego gracza, jeśli chcesz
-//           this.player.setPosition(players[id].x, players[id].y);
-//           continue;
-//         }
-//         const other = this.physics.add.image(players[id].x, players[id].y, "player");
-//         otherPlayers[id] = other;
-//       }
-//     });
-
-//     socket.on("newPlayer", (data) => {
-//       const newP = this.physics.add.image(data.x, data.y, "player");
-//       otherPlayers[data.id] = newP;
-//     });
-
-//     socket.on("playerMoved", (data) => {
-//       if (otherPlayers[data.id]) {
-//         otherPlayers[data.id].x = data.x;
-//         otherPlayers[data.id].y = data.y;
-//       }
-//     });
-
-//     socket.on("playerDisconnected", (id) => {
-//       if (otherPlayers[id]) {
-//         otherPlayers[id].destroy();
-//         delete otherPlayers[id];
-//       }
-//     });
-
-//     socket.emit("readyForPlayers");
-//   }
-
-//   update() {
-//     console.log("Update działa");
-//     if (!this.player) {
-//       console.warn("Brak playera!");
-//       return;
-//     }
-//     const speed = 200;
-//     player.setVelocity(0);
-
-//     if (this.cursors.left.isDown) this.player.setVelocityX(-speed);
-//     if (this.cursors.right.isDown) this.player.setVelocityX(speed);
-//     if (this.cursors.up.isDown) this.player.setVelocityY(-speed);
-//     if (this.cursors.down.isDown) this.player.setVelocityY(speed);
-
-//     socket.emit("playerMovement", { x: this.player.x, y: this.player.y });
-//   }
-// }
