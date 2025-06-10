@@ -1,0 +1,28 @@
+#menu-nick {
+  font-size: 22px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid #888;
+  margin-bottom: 16px;
+  outline: none;
+  text-align: center;
+  width: 220px;
+  box-shadow: 0 2px 8px #0002;
+}
+
+.menu-btn {
+  background: linear-gradient(90deg, #4e54c8 0%, #8f94fb 100%);
+  color: #fff;
+  font-size: 22px;
+  border: none;
+  border-radius: 8px;
+  padding: 12px 32px;
+  cursor: pointer;
+  box-shadow: 0 2px 8px #0002;
+  transition: background 0.2s, transform 0.1s;
+  margin-top: 12px;
+}
+.menu-btn:hover {
+  background: linear-gradient(90deg, #8f94fb 0%, #4e54c8 100%);
+  transform: scale(1.05);
+}

@@ -15,9 +15,10 @@ io.on("connection", (socket) => {
   players[socket.id] = { x: 100, y: 100 };
 
   // Czekamy, aż klient powie, że gotowy
-  socket.on("readyForPlayers", () => {
+  socket.on("readyForPlayers", (data) => {
+    players[socket.id] = { x: 100, y: 100, nick: data?.nick || "Gracz" };
     socket.emit("currentPlayers", players);
-    socket.broadcast.emit("newPlayer", { id: socket.id, x: 100, y: 100 });
+    socket.broadcast.emit("newPlayer", { id: socket.id, x: 100, y: 100, nick: players[socket.id].nick });
   });
 
 

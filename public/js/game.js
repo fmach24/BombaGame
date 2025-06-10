@@ -1,5 +1,6 @@
 import MainMenu from "../scenes/MainMenu.js";
 import GameScene from "../scenes/GameScene.js";
+import GameOver from "../scenes/GameOver.js";
 
 // const socket = io();
 
@@ -7,6 +8,8 @@ const config = {
   type: Phaser.AUTO,
   width: 800,
   height: 600,
+  parent: "game-container", // <-- to jest kluczowe!
+  dom: { createContainer: true }, // <-- DODAJ TO!
   physics: {
     default: "arcade",
     arcade: { debug: false }
@@ -16,7 +19,7 @@ const config = {
   //   create,
   //   update
   // }
-  scene: [MainMenu, GameScene]
+  scene: [MainMenu, GameScene, GameOver]
 };
 
 new Phaser.Game(config);

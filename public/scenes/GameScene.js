@@ -1,6 +1,7 @@
 import socket from "../js/socket.js";
 import Player from "../js/player.js";
 import Bullet from "../js/bullet.js";
+import Explosion from "../js/explosion.js";
 
 export default class GameScene extends Phaser.Scene {
   constructor() {
@@ -27,8 +28,12 @@ export default class GameScene extends Phaser.Scene {
     this.load.image('frame2l', 'assets/sprites/standing2l.png');
   }
 
-  create() {
-    // this.cameras.main.setBackgroundColor('#ffffff');
+  create(data) {
+
+
+    this.myNick = data?.nick || "Gracz " + socket.id;
+
+    this.cameras.main.setBackgroundColor('#ffffff');
 
     this.cursors = this.input.keyboard.createCursorKeys();
 
@@ -79,15 +84,16 @@ export default class GameScene extends Phaser.Scene {
       for (const id in players) {
         if (id === socket.id) {
           // this.player = this.physics.add.sprite(players[id].x, players[id].y, "frame1r").setCollideWorldBounds(true);
-          this.player = new Player(this, players[id].x, players[id].y, "frame1r");
+          this.player = new Player(this, players[id].x, players[id].y, "frame1r", players[id].nick);
           this.player.play('bombardinhoIdleright');
         } else {
           // const other = this.physics.add.sprite(players[id].x, players[id].y, "frame1r").setCollideWorldBounds(true);
-          const other = new Player(this, players[id].x, players[id].y, "frame1r");
+          const other = new Player(this, players[id].x, players[id].y, "frame1r", players[id].nick);
           other.play('bombardinhoIdleright');
           this.otherPlayers[id] = other;
         }
       }
+
       console.log("Moje ID:", socket.id);
     });
 
@@ -96,9 +102,11 @@ export default class GameScene extends Phaser.Scene {
       // const newP = this.physics.add.sprite(data.x, data.y, "player");
 
       // const newP = this.add.sprite(data.x, data.y, 'frame1r');
-      const newP = new Player(this, data.x, data.y, 'frame1r');
+      const newP = new Player(this, data.x, data.y, 'frame1r', data.nick);
       newP.play('bombardinhoIdleright');
       this.otherPlayers[data.id] = newP;
+
+      // this.physics.add.overlap(this.bullets, newP, this.onPlayerHitByBomb, null, this);
     });
 
     socket.on("playerMoved", (data) => {
@@ -116,13 +124,14 @@ export default class GameScene extends Phaser.Scene {
       }
     });
 
-    socket.emit("readyForPlayers");
+    socket.emit("readyForPlayers", { nick: this.myNick });
   }
 
+  // TODO: ponaprawiac to update, zeby nie bylo problemow z animacjami, tworzeniem nowych bomb i kolizje z inymi graczami
   update() {
     if (!this.player) return;
 
-    const speed = 5000;
+    const speed = 200;
     this.player.setVelocity(0);
 
     // if (this.cursors.left.isDown) this.player.setVelocityX(-speed);
@@ -160,22 +169,35 @@ export default class GameScene extends Phaser.Scene {
       //     "bomb"
       // );
       const bullet = new Bullet(this, this.player.x, this.player.y, "bomb");
-
+      this.bullets.add(bullet);
       bullet.play('idle');
 
       bullet.on('animationcomplete', () => {
-        // 1. Ukryj bombę (ale nie niszcz, aby pozostały współrzędne)
         bullet.setVisible(false);
-        bullet.body.stop(); // Zatrzymaj fizykę
+        bullet.body.stop();
 
-        // 2. Stwórz wybuch w miejscu bomby
-        const explosion = this.add.sprite(bullet.x, bullet.y, 'boom');
-        explosion.play('boom');
+        // TODO: tutaj robimy obiekt animacji nw czy to tak zostawic czy inaczej, cale to fire ogarnac
+        //1. Stwórz animację wybuchu
+        const explosionAnim = this.add.sprite(bullet.x, bullet.y, 'boom');
+        explosionAnim.play('boom');
 
-        // 3. Po zakończeniu wybuchu, zniszcz oba obiekty
-        explosion.on('animationcomplete', () => {
-            explosion.destroy();
-            bullet.destroy(); // Teraz niszczymy bombę
+        // 2. Stwórz obiekt wybuchu z fizyką
+        const explosion = new Explosion(this, bullet.x, bullet.y);
+
+        // 3. Kolizja wybuchu z graczami
+        this.physics.add.overlap(explosion, this.player, () => {
+          this.onPlayerHitByBomb(bullet, this.player);
+        }, null, this);
+
+        for (const id in this.otherPlayers) {
+          this.physics.add.overlap(explosion, this.otherPlayers[id], () => {
+            this.onPlayerHitByBomb(bullet, this.otherPlayers[id]);
+          }, null, this);
+        }
+
+        explosionAnim.on('animationcomplete', () => {
+          explosionAnim.destroy();
+          bullet.destroy();
         });
     });
 
@@ -193,12 +215,35 @@ export default class GameScene extends Phaser.Scene {
       this.physics.add.collider(bullet, this.enemies, this.hitEnemy, null, this);
   }
 
-  // Funkcja wywoływana przy trafieniu wroga
-  hitEnemy(bullet, enemy) {
-      bullet.destroy();  // Usuń pocisk
-      enemy.destroy();   // Usuń wroga (lub zadaj mu obrażenia)
-  }
+  // TODO: ponaprawiac to całe kolizje 
+  onPlayerHitByBomb(bomb, player) {
+    // Możesz sprawdzić, czy to nie jest bomba właściciela:
+    // if (bomb.ownerId === player.id) return;
 
+    // Efekt śmierci gracza
+    player.setTint(0xff0000);
+    player.setVelocity(0, 0);
+    player.anims.stop();
+
+    // Możesz też usunąć gracza:
+    // player.destroy();
+
+    // Usuń bombę i wybuch
+    bomb.setVisible(false);
+    bomb.body.stop();
+    const explosion = this.add.sprite(bomb.x, bomb.y, 'boom');
+    explosion.play('boom');
+    explosion.on('animationcomplete', () => {
+      explosion.destroy();
+      bomb.destroy();
+    });
+
+    // Przejdź do menu GameOver po trafieniu  
+    this.scene.start('GameOver');
+    // Możesz też wysłać informację do serwera o trafieniu
+    //socket.emit("playerHit", { playerId: player.id, bombId: bomb.id });
+      
+  }
 }
 
 
